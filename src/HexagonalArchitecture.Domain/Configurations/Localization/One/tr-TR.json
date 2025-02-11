@@ -1,0 +1,10 @@
+{
+  "culture": "tr",
+  "texts": {
+    "Welcome": "Hoşgeldiniz",
+    "ProductCreated": "Stok başarıyla oluşturuldu",
+    "ProductDeleted": "Stok başarıyla silindi",
+    "Authorization:Error": "Yetkilendirme hatası",
+    "Validation:Error": "Doğrulama hatası"
+  }
+}

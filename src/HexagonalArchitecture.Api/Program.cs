@@ -1,19 +1,20 @@
 using HexagonalArchitecture.Application;
+using HexagonalArchitecture.Domain.Configurations.Localization.Confgurations;
+using HexagonalArchitecture.Domain.Middlewares;
 using HexagonalArchitecture.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Globalization;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
-
-// Add CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", builder =>
@@ -23,7 +24,6 @@ builder.Services.AddCors(options =>
                .AllowAnyHeader();
     });
 });
-
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -64,9 +64,12 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddOneLocalization();
+builder.Services.AddTransient<ExceptionHandlingMiddleware>();
+
+
 
 builder.Services.AddAuthentication(options =>
 {
@@ -90,8 +93,11 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("UserPolicy", policy =>
         policy.RequireRole("user"));
 });
-
 var app = builder.Build();
+
+var localizationOptions = app.Services.GetService<IOptions<RequestLocalizationOptions>>();
+app.UseRequestLocalization(localizationOptions.Value);
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

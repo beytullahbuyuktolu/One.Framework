@@ -1,0 +1,10 @@
+{
+  "culture": "en",
+  "texts": {
+    "Welcome": "Welcome",
+    "ProductCreated": "Product created successfully",
+    "ProductDeleted": "Product deleted successfully",
+    "Authorization:Error": "Authorization error",
+    "Validation:Error": "Validation error"
+  }
+}

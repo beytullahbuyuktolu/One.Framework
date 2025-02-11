@@ -2,9 +2,12 @@ using HexagonalArchitecture.Application.Products.Commands.CreateProduct;
 using HexagonalArchitecture.Application.Products.Commands.DeleteProduct;
 using HexagonalArchitecture.Application.Products.Commands.UpdateProduct;
 using HexagonalArchitecture.Application.Products.Queries.GetProducts;
+using HexagonalArchitecture.Domain.Configurations.Localization;
+using HexagonalArchitecture.Domain.Exceptions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 
 namespace HexagonalArchitecture.Api.Controllers;
 
@@ -13,10 +16,13 @@ namespace HexagonalArchitecture.Api.Controllers;
 public class ProductController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IStringLocalizer<OneResource> _localizer;
 
-    public ProductController(IMediator mediator)
+
+    public ProductController(IMediator mediator, IStringLocalizer<OneResource> localizer)
     {
         _mediator = mediator;
+        _localizer = localizer;
     }
 
     [HttpGet]
@@ -54,5 +60,16 @@ public class ProductController : ControllerBase
         var command = new DeleteProductCommand { Id = id };
         await _mediator.Send(command);
         return NoContent();
+    }
+    [HttpGet("test-exception")]
+    public IActionResult TestException()
+    {
+        // Business exception test
+        throw new BusinessException("Customer:NotFound");
+    }
+    [HttpGet("welcome")]
+    public IActionResult Welcome()
+    {
+        return Ok(_localizer["Welcome"]);
     }
 }

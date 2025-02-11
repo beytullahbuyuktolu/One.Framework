@@ -64,12 +64,11 @@ public class ProductController : ControllerBase
     [HttpGet("test-exception")]
     public IActionResult TestException()
     {
-        // Business exception test
         throw new BusinessException("Customer:NotFound");
     }
     [HttpGet("welcome")]
     public IActionResult Welcome()
     {
-        return Ok(_localizer["Welcome"]);
+        return Ok(_localizer["Welcome"].Value);
     }
 }

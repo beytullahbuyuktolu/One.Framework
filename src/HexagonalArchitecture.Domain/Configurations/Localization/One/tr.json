@@ -1,8 +1,9 @@
 {
-    "Welcome": "Hoşgeldiniz",
-    "ProductCreated": "Stok başarıyla oluşturuldu",
-    "Customer:NotFound": "test",
-    "ProductDeleted": "Stok başarıyla silindi",
-    "Authorization:Error": "Yetkilendirme hatası",
-    "Validation:Error": "Doğrulama hatası"
-  }
+  "Welcome": "Hoşgeldiniz",
+  "ProductCreated": "Stok başarıyla oluşturuldu",
+  "ProductDeleted": "Stok başarıyla silindi",
+  "Customer:NotFound": "Müşteri bulunamadı",
+  "Internal:ServerError": "Bir hata oluştu",
+  "Authorization:Error": "Yetkilendirme hatası",
+  "Validation:Error": "Doğrulama hatası"
+}

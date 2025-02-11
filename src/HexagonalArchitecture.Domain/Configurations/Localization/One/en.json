@@ -1,7 +1,7 @@
 {
     "Welcome": "Welcome",
     "ProductCreated": "Product created successfully",
-    "Customer:NotFound": "test",
+    "Customer:NotFound": "customer yok",
     "ProductDeleted": "Product deleted successfully",
     "Authorization:Error": "Authorization error",
     "Validation:Error": "Validation error"

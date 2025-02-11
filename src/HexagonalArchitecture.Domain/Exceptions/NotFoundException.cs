@@ -1,5 +1,5 @@
 ﻿namespace HexagonalArchitecture.Domain.Exceptions;
-public class NotFoundException : Exception
+public class NotFoundException : BusinessException
 {
-    public NotFoundException(string message) : base(message) { }
+    public NotFoundException(string messageKey) : base(messageKey, 404)    {    }
 }

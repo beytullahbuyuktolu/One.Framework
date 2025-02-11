@@ -1,3 +1,4 @@
+using HexagonalArchitecture.Application.Permissions;
 using HexagonalArchitecture.Application.Products.Commands.CreateProduct;
 using HexagonalArchitecture.Application.Products.Commands.DeleteProduct;
 using HexagonalArchitecture.Application.Products.Commands.UpdateProduct;
@@ -35,7 +36,7 @@ public class ProductController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = OnePermissions.UserPolicy)]
     public async Task<ActionResult<ProductDto>> Create([FromBody] CreateProductCommand command)
     {
         var result = await _mediator.Send(command);
@@ -43,7 +44,7 @@ public class ProductController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = OnePermissions.AdminPolicy)]
     public async Task<ActionResult> Update(Guid id, [FromBody] UpdateProductCommand command)
     {
         if (id != command.Id)
@@ -54,7 +55,7 @@ public class ProductController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = OnePermissions.AdminPolicy)]
     public async Task<ActionResult> Delete(Guid id)
     {
         var command = new DeleteProductCommand { Id = id };

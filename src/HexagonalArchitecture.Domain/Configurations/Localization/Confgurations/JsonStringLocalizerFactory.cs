@@ -4,20 +4,13 @@ using Microsoft.Extensions.Options;
 namespace HexagonalArchitecture.Domain.Configurations.Localization.Confgurations;
 public class JsonStringLocalizerFactory : IStringLocalizerFactory
 {
-    private readonly string _resourcesPath;
-
-    public JsonStringLocalizerFactory(IOptions<LocalizationOptions> options)
-    {
-        _resourcesPath = options.Value.ResourcesPath;
-    }
-
     public IStringLocalizer Create(Type resourceSource)
     {
-        return new JsonStringLocalizer();
+        return new JsonStringLocalizer<object>();
     }
 
     public IStringLocalizer Create(string baseName, string location)
     {
-        return new JsonStringLocalizer();
+        return new JsonStringLocalizer<object>();
     }
 }

@@ -15,7 +15,15 @@ public class JsonStringLocalizer<T> : IStringLocalizer<T>
     private void LoadResources()
     {
         var culture = CultureInfo.CurrentUICulture.Name.Split('-')[0];
-        var filePath = Path.Combine(AppContext.BaseDirectory, "Configurations", "Localization", "Configurations", $"{culture}.json");
+        var domainPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..\\..\\..\\..\\HexagonalArchitecture.Domain"));
+
+        // Localization dosyalarının yolu
+        var filePath = Path.Combine(domainPath, "Configurations", "Localization", "One", $"{culture}.json");
+
+        if (!File.Exists(filePath))
+        {
+            filePath = Path.Combine(domainPath, "Configurations", "Localization", "One", "tr.json");
+        }
 
         if (File.Exists(filePath))
         {

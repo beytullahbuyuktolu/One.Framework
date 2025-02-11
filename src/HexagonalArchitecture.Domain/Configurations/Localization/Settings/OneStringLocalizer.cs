@@ -76,6 +76,6 @@ public class OneStringLocalizer<TResource> : IStringLocalizer<TResource>
 
 public class LocalizationJsonResource
 {
-    public string Culture { get; set; }
-    public Dictionary<string, string> Texts { get; set; }
+    public CultureInfo Culture { get; set; } = CultureInfo.CurrentCulture;
+    public Dictionary<string, string> Texts { get; set; } = new();
 }

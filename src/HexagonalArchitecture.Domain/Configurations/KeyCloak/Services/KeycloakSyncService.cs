@@ -96,7 +96,7 @@ public class KeycloakSyncService : IKeycloakSyncService
     public async Task<IEnumerable<string>> GetMissingPermissionsAsync(CancellationToken cancellationToken = default)
     {
        
-        //var existingPermissions = await GetExistingPermissionsAsync(cancellationToken);
+        var existingPermissions = await GetExistingPermissionsAsync(cancellationToken);
         //var allPermissions = OnePermissions.GetAllPermissions();
 
         //return allPermissions.Except(existingPermissions);

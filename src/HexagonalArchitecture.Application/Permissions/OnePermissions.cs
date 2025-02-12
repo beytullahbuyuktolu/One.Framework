@@ -2,8 +2,8 @@
 public static class OnePermissions
 {
     public const string GroupName = "One";
-    public const string AdminPolicy = "AdminPolicy";
-    public const string UserPolicy = "UserPolicy";
+    public const string AdminPolicy = "admin";
+    public const string UserPolicy = "user";
 
     public static class Products
     {

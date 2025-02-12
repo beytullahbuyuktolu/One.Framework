@@ -43,8 +43,7 @@ public static class AuthenticationExtensions
             {
                 OnTokenValidated = context =>
                 {
-                    var loggerFactory = context.HttpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>();
+                    var loggerFactory = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>();
                     var logger = loggerFactory.CreateLogger("JwtBearerEvents");
 
                     logger.LogInformation("Token validation successful");
@@ -54,20 +53,18 @@ public static class AuthenticationExtensions
                     {
                         var identity = context.Principal?.Identity as ClaimsIdentity;
                         identity?.AddClaim(new Claim("tenant_id", tenantIdClaim.Value));
-                        
+
                         logger.LogInformation($"Tenant ID added to claims: {tenantIdClaim.Value}");
                     }
                     else
-                    {
                         logger.LogWarning("No tenant ID found in token claims");
-                    }
+
 
                     return Task.CompletedTask;
                 },
                 OnAuthenticationFailed = context =>
                 {
-                    var loggerFactory = context.HttpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>();
+                    var loggerFactory = context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>();
                     var logger = loggerFactory.CreateLogger("JwtBearerEvents");
 
                     logger.LogError($"Authentication failed: {context.Exception.Message}");

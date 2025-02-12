@@ -36,7 +36,7 @@ public class ProductController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = OnePermissions.UserPolicy)]
+    [Authorize(Policy = OnePermissions.AdminPolicy)]
     public async Task<ActionResult<ProductDto>> Create([FromBody] CreateProductCommand command)
     {
         var result = await _mediator.Send(command);

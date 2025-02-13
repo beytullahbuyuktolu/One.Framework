@@ -1,4 +1,5 @@
 ﻿using HexagonalArchitecture.Domain.Configurations.KeyCloak.Interfaces;
+using HexagonalArchitecture.Domain.Permissions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
@@ -95,32 +96,26 @@ public class KeycloakSyncService : IKeycloakSyncService
 
     public async Task<IEnumerable<string>> GetMissingPermissionsAsync(CancellationToken cancellationToken = default)
     {
-       
-        var existingPermissions = await GetExistingPermissionsAsync(cancellationToken);
-        //var allPermissions = OnePermissions.GetAllPermissions();
 
-        //return allPermissions.Except(existingPermissions);
-        return default;
+        var existingPermissions = await GetExistingPermissionsAsync(cancellationToken);
+        var allPermissions = OnePermissions.GetAllPermissions();
+        return allPermissions.Except(existingPermissions);
     }
 
-    public async Task<IEnumerable<string>> GetExistingPermissionsAsync(
-        CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<string>> GetExistingPermissionsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var token = await GetAdminTokenAsync(cancellationToken);
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var getRolesUrl =
-                $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles";
+            var getRolesUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles";
 
             var response = await client.GetAsync(getRolesUrl, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            var roles = await response.Content
-                .ReadFromJsonAsync<List<KeycloakRole>>(cancellationToken: cancellationToken);
+            var roles = await response.Content.ReadFromJsonAsync<List<KeycloakRole>>(cancellationToken: cancellationToken);
 
             return roles?.Select(r => r.Name) ?? Enumerable.Empty<string>();
         }
@@ -134,21 +129,20 @@ public class KeycloakSyncService : IKeycloakSyncService
     private async Task<string> GetAdminTokenAsync(CancellationToken cancellationToken)
     {
         var client = _httpClientFactory.CreateClient();
-        var tokenUrl =
-            $"{_keycloakBaseUrl}/realms/{_realm}/protocol/openid-connect/token";
+        var tokenUrl = $"{_keycloakBaseUrl}/realms/master/protocol/openid-connect/token";
 
         var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "client_credentials",
-            ["client_id"] = _clientId,
-            ["client_secret"] = _clientSecret
+            ["client_id"] = "admin-cli",
+            ["username"] = _configuration["Keycloak:AdminUsername"],
+            ["password"] = _configuration["Keycloak:AdminPassword"]
         });
 
         var response = await client.PostAsync(tokenUrl, tokenRequest, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var tokenResponse = await response.Content
-            .ReadFromJsonAsync<KeycloakTokenResponse>(cancellationToken: cancellationToken);
+        var tokenResponse = await response.Content.ReadFromJsonAsync<KeycloakTokenResponse>(cancellationToken: cancellationToken);
 
         return tokenResponse?.AccessToken;
     }

@@ -11,6 +11,9 @@ using Serilog;
 using System.Globalization;
 using System.Security.Claims;
 using HexagonalArchitecture.Api.Middlewares;
+using HexagonalArchitecture.Domain.Configurations.KeyCloak.Interfaces;
+using HexagonalArchitecture.Domain.Configurations.KeyCloak.Services;
+using HexagonalArchitecture.Api.Extensions;
 
 
 Log.Logger = new LoggerConfiguration()
@@ -86,7 +89,9 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddOneLocalization();
 builder.Services.AddTransient<ExceptionHandlingMiddleware>();
-
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IKeycloakSyncService, KeycloakSyncService>();
+builder.Services.AddHostedService<PermissionSyncHostedService>();
 
 builder.Services.AddScoped<LoggingMiddleware>();
 builder.Services.AddAuthentication(options =>

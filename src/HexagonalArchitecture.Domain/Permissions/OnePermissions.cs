@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace HexagonalArchitecture.Application.Permissions;
+namespace HexagonalArchitecture.Domain.Permissions;
 public static class OnePermissions
 {
     public const string GroupName = "One";

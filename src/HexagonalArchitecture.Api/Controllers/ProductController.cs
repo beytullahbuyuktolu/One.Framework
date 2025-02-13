@@ -1,10 +1,10 @@
-using HexagonalArchitecture.Application.Permissions;
 using HexagonalArchitecture.Application.Products.Commands.CreateProduct;
 using HexagonalArchitecture.Application.Products.Commands.DeleteProduct;
 using HexagonalArchitecture.Application.Products.Commands.UpdateProduct;
 using HexagonalArchitecture.Application.Products.Queries.GetProducts;
 using HexagonalArchitecture.Domain.Configurations.Localization;
 using HexagonalArchitecture.Domain.Exceptions;
+using HexagonalArchitecture.Domain.Permissions;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -27,8 +27,8 @@
     <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="9.0.1" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.1" />
   </ItemGroup>
-	<ItemGroup>
+	<!--<ItemGroup>
 		<ProjectReference Include="..\HexagonalArchitecture.Application\HexagonalArchitecture.Application.csproj" />
-	</ItemGroup>
+	</ItemGroup>-->
 
 </Project>

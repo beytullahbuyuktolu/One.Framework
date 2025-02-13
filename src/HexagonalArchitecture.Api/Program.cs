@@ -14,6 +14,8 @@ using HexagonalArchitecture.Api.Middlewares;
 using HexagonalArchitecture.Domain.Configurations.KeyCloak.Interfaces;
 using HexagonalArchitecture.Domain.Configurations.KeyCloak.Services;
 using HexagonalArchitecture.Api.Extensions;
+using HexagonalArchitecture.Domain.Permissions;
+using System.Text.Json;
 
 
 Log.Logger = new LoggerConfiguration()
@@ -101,21 +103,116 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.Authority = builder.Configuration["Keycloak:Authority"];
-    options.RequireHttpsMetadata = false;
+    var configuration = builder.Configuration;
+
+    // Keycloak ayarlarý
+    options.Authority = configuration["Keycloak:Authority"];
+    options.Audience = configuration["Keycloak:Audience"];
+    options.RequireHttpsMetadata = false; // Development için
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateAudience = false
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = configuration["Keycloak:Authority"], // Issuer'ý ekle
+        ValidAudience = configuration["Keycloak:Audience"], // Audience'ý ekle
+        ValidAudiences = new[] { "broker", "account", "hexagonal-api" },
+        RoleClaimType = "realm_access", // Keycloak rol claim tipi
+        NameClaimType = "preferred_username" // Kullanýcý adý claim tipi
+    };
+
+    // Token doðrulama olaylarýný logla
+    options.Events = new JwtBearerEvents
+    {
+        OnTokenValidated = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Token validated for user: {User}", context.Principal?.Identity?.Name);
+            return Task.CompletedTask;
+        },
+        OnAuthenticationFailed = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError(context.Exception, "Authentication failed");
+            return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Token received: {Token}", context.Token);
+            return Task.CompletedTask;
+        }
     };
 });
 
+
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminPolicy", policy =>
-        policy.RequireRole("admin"));
-    options.AddPolicy("UserPolicy", policy =>
-        policy.RequireRole("user"));
+    options.AddPolicy(OnePermissions.AdminPolicy, policy =>
+        policy.RequireAssertion(context =>
+        {
+            var logger = context.Resource as ILogger<Program>;
+
+            // realm_access'ten rolleri kontrol et
+            var realmAccess = context.User.Claims
+                .FirstOrDefault(c => c.Type == "realm_access")?.Value;
+
+            if (realmAccess != null)
+            {
+                try
+                {
+                    var realmRoles = JsonSerializer.Deserialize<JsonElement>(realmAccess)
+                        .GetProperty("roles")
+                        .EnumerateArray()
+                        .Select(r => r.GetString())
+                        .ToList();
+
+                    logger?.LogInformation("Checking admin role in realm_access. Roles: {Roles}",
+                        string.Join(", ", realmRoles));
+
+                    return realmRoles.Contains("admin");
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Error parsing realm_access roles");
+                }
+            }
+
+            // resource_access'ten rolleri kontrol et
+            var resourceAccess = context.User.Claims
+                .FirstOrDefault(c => c.Type == "resource_access")?.Value;
+
+            if (resourceAccess != null)
+            {
+                try
+                {
+                    var resources = JsonSerializer.Deserialize<JsonElement>(resourceAccess);
+                    if (resources.TryGetProperty("hexagonal-api", out var apiRoles))
+                    {
+                        var roles = apiRoles.GetProperty("roles")
+                            .EnumerateArray()
+                            .Select(r => r.GetString())
+                            .ToList();
+
+                        logger?.LogInformation("Checking admin role in resource_access. Roles: {Roles}",
+                            string.Join(", ", roles));
+
+                        return roles.Contains("admin");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogError(ex, "Error parsing resource_access roles");
+                }
+            }
+
+            logger?.LogWarning("No admin role found in either realm_access or resource_access");
+            return false;
+        }));
 });
+
 var app = builder.Build();
 
 var localizationOptions = app.Services.GetService<IOptions<RequestLocalizationOptions>>();
@@ -126,6 +223,7 @@ app.UseRequestLocalization(localizationOptions.Value);
 //});
 app.UseMiddleware<LoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<AuthenticationLoggingMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

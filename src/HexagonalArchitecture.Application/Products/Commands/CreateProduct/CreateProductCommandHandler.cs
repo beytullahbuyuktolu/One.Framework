@@ -20,10 +20,8 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
     public async Task<Guid> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
         var product = new Product(request.Name, request.Code, request.Price, _currentTenantService.GetTenantId());
-
         await _productRepository.AddAsync(product, cancellationToken);
         await _productRepository.SaveChangesAsync(cancellationToken);
-
         return product.Id;
     }
 }

@@ -257,7 +257,7 @@ host/Definition.HttpApi.Host/Logs/logs.txt
 host/Definition.Web.Host/Logs/logs.txt
 host/Definition.Web.Unified/Logs/logs.txt
 host/Definition.Blazor.Server.Host/Logs/logs.txt
-src/HexagonalArchitecture.Api/Logs/logs.txt
+src/HexagonalArchitecture.Api/Logs
 
 # Use abp install-libs to restore.
 **/wwwroot/libs/*

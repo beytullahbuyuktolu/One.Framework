@@ -93,6 +93,50 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "permission-sync-client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "permission-sync-secret",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false,
+      "attributes": {
+        "service.accounts.roles": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ],
+      "serviceAccountsRoles": [
+        "view-realm",
+        "view-users",
+        "view-clients",
+        "view-authorization"
+      ]
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "realm-management",
+      "description": "Realm Management Scope",
+      "protocol": "openid-connect"
     }
   ]
 }

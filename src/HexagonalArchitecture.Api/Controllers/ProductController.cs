@@ -19,7 +19,6 @@ public class ProductController : ControllerBase
     private readonly IMediator _mediator;
     private readonly IStringLocalizer<OneResource> _localizer;
 
-
     public ProductController(IMediator mediator, IStringLocalizer<OneResource> localizer)
     {
         _mediator = mediator;
@@ -27,7 +26,7 @@ public class ProductController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize]
+    [RequirePermission(OnePermissions.Products.Read)]
     public async Task<ActionResult<List<ProductDto>>> GetProducts()
     {
         var query = new GetProductsQuery();
@@ -36,7 +35,7 @@ public class ProductController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Policy = OnePermissions.AdminPolicy)]
+    [RequirePermission(OnePermissions.Products.Create)]
     public async Task<ActionResult<ProductDto>> Create([FromBody] CreateProductCommand command)
     {
         var result = await _mediator.Send(command);
@@ -44,7 +43,7 @@ public class ProductController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Policy = OnePermissions.AdminPolicy)]
+    [RequirePermission(OnePermissions.Products.Update)]
     public async Task<ActionResult> Update(Guid id, [FromBody] UpdateProductCommand command)
     {
         if (id != command.Id)
@@ -55,18 +54,20 @@ public class ProductController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Policy = OnePermissions.AdminPolicy)]
+    [RequirePermission(OnePermissions.Products.Delete)]
     public async Task<ActionResult> Delete(Guid id)
     {
         var command = new DeleteProductCommand { Id = id };
         await _mediator.Send(command);
         return NoContent();
     }
+
     [HttpGet("test-exception")]
     public IActionResult TestException()
     {
         throw new BusinessException("Customer:NotFound");
     }
+
     [HttpGet("welcome")]
     public IActionResult Welcome()
     {

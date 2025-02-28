@@ -20,6 +20,7 @@ public class KeycloakSyncService : IKeycloakSyncService
     private readonly IConfiguration _configuration;
     private readonly string _keycloakBaseUrl;
     private readonly string _realm;
+    private readonly string _clientId;
 
     public KeycloakSyncService(ILogger<KeycloakSyncService> logger, IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
@@ -28,6 +29,7 @@ public class KeycloakSyncService : IKeycloakSyncService
         _configuration = configuration;
         _keycloakBaseUrl = configuration["Keycloak:Authority"]?.TrimEnd('/');
         _realm = configuration["Keycloak:Realm"];
+        _clientId = configuration["Keycloak:ClientId"];
     }
 
     public async Task SyncPermissionsAsync(CancellationToken cancellationToken = default)
@@ -46,30 +48,81 @@ public class KeycloakSyncService : IKeycloakSyncService
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
+            // Get client ID from Keycloak
+            var clientsUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/clients";
+            var response = await client.GetAsync(clientsUrl, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var clients = await response.Content.ReadFromJsonAsync<List<KeycloakClient>>(cancellationToken);
+            var apiClient = clients.FirstOrDefault(c => c.ClientId == _clientId);
+
+            if (apiClient == null)
+            {
+                _logger.LogError("Client {ClientId} not found in Keycloak", _clientId);
+                return;
+            }
+
             foreach (var permission in missingPermissions)
             {
                 try
                 {
-                    var createRoleUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles";
-
-                    var roleData = new
+                    // Create resource
+                    var resourceUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/clients/{apiClient.Id}/authz/resource-server/resource";
+                    var resourceData = new
                     {
                         name = permission,
-                        description = $"Auto-generated permission: {permission}"
+                        displayName = permission,
+                        type = "urn:hexagonal-api:resources:permission",
+                        ownerManagedAccess = false,
+                        attributes = new Dictionary<string, List<string>>
+                        {
+                            ["permission_type"] = new List<string> { "application_permission" }
+                        },
+                        scopes = new[]
+                        {
+                            new { name = "access" }
+                        }
                     };
 
-                    var response = await client.PostAsJsonAsync(createRoleUrl, roleData, cancellationToken);
-
-                    if (response.IsSuccessStatusCode)
+                    var resourceResponse = await client.PostAsJsonAsync(resourceUrl, resourceData, cancellationToken);
+                    
+                    if (resourceResponse.IsSuccessStatusCode)
                     {
-                        _logger.LogInformation("Successfully created permission: {Permission}", permission);
+                        var resource = await resourceResponse.Content.ReadFromJsonAsync<KeycloakResource>(cancellationToken);
+
+                        // Create permission
+                        var policyUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/clients/{apiClient.Id}/authz/resource-server/permission/resource";
+                        var policyData = new
+                        {
+                            name = $"{permission}_permission",
+                            description = $"Permission for {permission}",
+                            type = "resource",
+                            logic = "POSITIVE",
+                            decisionStrategy = "UNANIMOUS",
+                            resources = new[] { resource.Id },
+                            policies = Array.Empty<string>()
+                        };
+
+                        var policyResponse = await client.PostAsJsonAsync(policyUrl, policyData, cancellationToken);
+
+                        if (policyResponse.IsSuccessStatusCode)
+                        {
+                            _logger.LogInformation("Successfully created permission: {Permission}", permission);
+                        }
+                        else
+                        {
+                            var errorContent = await policyResponse.Content.ReadAsStringAsync(cancellationToken);
+                            _logger.LogWarning(
+                                "Failed to create permission policy: {Permission}. Status: {Status}, Error: {Error}",
+                                permission, policyResponse.StatusCode, errorContent);
+                        }
                     }
                     else
                     {
-                        var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                        var errorContent = await resourceResponse.Content.ReadAsStringAsync(cancellationToken);
                         _logger.LogWarning(
-                            "Failed to create permission: {Permission}. Status: {Status}, Error: {Error}",
-                            permission, response.StatusCode, errorContent);
+                            "Failed to create permission resource: {Permission}. Status: {Status}, Error: {Error}",
+                            permission, resourceResponse.StatusCode, errorContent);
                     }
                 }
                 catch (Exception ex)
@@ -100,21 +153,35 @@ public class KeycloakSyncService : IKeycloakSyncService
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-            var getRolesUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles";
-            _logger.LogInformation("Getting roles from: {RolesUrl}", getRolesUrl);
+            // Get client ID first
+            var clientsUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/clients";
+            var response = await client.GetAsync(clientsUrl, cancellationToken);
+            response.EnsureSuccessStatusCode();
 
-            var response = await client.GetAsync(getRolesUrl, cancellationToken);
-            
-            if (!response.IsSuccessStatusCode)
+            var clients = await response.Content.ReadFromJsonAsync<List<KeycloakClient>>(cancellationToken);
+            var apiClient = clients.FirstOrDefault(c => c.ClientId == _clientId);
+
+            if (apiClient == null)
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("Failed to get roles. Status: {Status}, Error: {Error}", 
-                    response.StatusCode, errorContent);
-                throw new HttpRequestException($"Failed to get roles: {errorContent}");
+                _logger.LogError("Client {ClientId} not found in Keycloak", _clientId);
+                return Enumerable.Empty<string>();
             }
 
-            var roles = await response.Content.ReadFromJsonAsync<List<KeycloakRole>>(cancellationToken: cancellationToken);
-            return roles?.Select(r => r.Name) ?? Enumerable.Empty<string>();
+            var resourcesUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/clients/{apiClient.Id}/authz/resource-server/resource";
+            _logger.LogInformation("Getting resources from: {ResourcesUrl}", resourcesUrl);
+
+            var resourcesResponse = await client.GetAsync(resourcesUrl, cancellationToken);
+            
+            if (!resourcesResponse.IsSuccessStatusCode)
+            {
+                var errorContent = await resourcesResponse.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogError("Failed to get resources. Status: {Status}, Error: {Error}", 
+                    resourcesResponse.StatusCode, errorContent);
+                throw new HttpRequestException($"Failed to get resources: {errorContent}");
+            }
+
+            var resources = await resourcesResponse.Content.ReadFromJsonAsync<List<KeycloakResource>>(cancellationToken);
+            return resources?.Select(r => r.Name) ?? Enumerable.Empty<string>();
         }
         catch (Exception ex)
         {
@@ -150,7 +217,7 @@ public class KeycloakSyncService : IKeycloakSyncService
                 throw new HttpRequestException($"Failed to get admin token: {errorContent}");
             }
 
-            var tokenResponse = await response.Content.ReadFromJsonAsync<KeycloakTokenResponse>(cancellationToken: cancellationToken);
+            var tokenResponse = await response.Content.ReadFromJsonAsync<KeycloakTokenResponse>(cancellationToken);
             return tokenResponse?.AccessToken;
         }
         catch (Exception ex)
@@ -160,10 +227,22 @@ public class KeycloakSyncService : IKeycloakSyncService
         }
     }
 
-    private class KeycloakRole
+    private class KeycloakClient
     {
+        [JsonPropertyName("id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("clientId")]
+        public string ClientId { get; set; }
+    }
+
+    private class KeycloakResource
+    {
+        [JsonPropertyName("_id")]
+        public string Id { get; set; }
+
+        [JsonPropertyName("name")]
         public string Name { get; set; }
-        public string Description { get; set; }
     }
 
     private class KeycloakTokenResponse

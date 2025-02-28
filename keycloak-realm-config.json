@@ -67,15 +67,18 @@
       "redirectUris": ["http://localhost:5000/*"],
       "webOrigins": ["http://localhost:5000"],
       "publicClient": false,
-      "directAccessGrantsEnabled": true,
-      "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": true,
+      "serviceAccountsEnabled": true,
       "protocol": "openid-connect",
       "attributes": {
-        "access.token.lifespan": "300",
-        "refresh.token.lifespan": "1800"
+        "access.token.lifespan": "300"
+      },
+      "authorizationSettings": {
+        "allowRemoteResourceManagement": true,
+        "policyEnforcementMode": "ENFORCING",
+        "resources": [],
+        "policies": [],
+        "scopes": []
       },
       "protocolMappers": [
         {

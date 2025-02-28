@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 
 namespace HexagonalArchitecture.Domain.Permissions;
+
 public static class OnePermissions
 {
     public const string GroupName = "One";
@@ -10,23 +11,22 @@ public static class OnePermissions
     public static class Products
     {
         public const string Default = GroupName + ".Products";
-        public const string Create = ".Create";
-        public const string Read = ".Read";
-        public const string Update = ".Update";
-        public const string Delete = ".Delete";
-        public const string Export = ".Export";
+        public const string Create = Default + ".Create";
+        public const string Read = Default + ".Read";
+        public const string Update = Default + ".Update";
+        public const string Delete = Default + ".Delete";
+        public const string Export = Default + ".Export";
     }
+
     public static IEnumerable<string> GetAllPermissions()
     {
-        var permissions = new List<string>();
-        var nestedTypes = typeof(OnePermissions).GetNestedTypes(BindingFlags.Public | BindingFlags.Static);
-
-        foreach (var type in nestedTypes)
+        return new[]
         {
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy).Where(fi => fi.IsLiteral && !fi.IsInitOnly);
-            permissions.AddRange(fields.Select(f => f.GetValue(null).ToString()));
-        }
-        return permissions;
+            Products.Create,
+            Products.Read,
+            Products.Update,
+            Products.Delete
+        };
     }
 
     public static IEnumerable<(string Module, string Action)> GetPermissionPairs()

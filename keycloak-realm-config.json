@@ -70,7 +70,11 @@
       "authorizationServicesEnabled": true,
       "serviceAccountsEnabled": true,
       "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
       "attributes": {
+        "pkce.code.challenge.method": "S256",
         "access.token.lifespan": "300"
       },
       "authorizationSettings": {

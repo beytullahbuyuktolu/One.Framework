@@ -120,42 +120,32 @@ public class PermissionSyncHostedService : BackgroundService
             {
                 {
                     "admin",
-                    new[]
-                    {
-                        StandardPermissions.Users.Default,
-                        StandardPermissions.Users.Create,
-                        StandardPermissions.Users.Read,
-                        StandardPermissions.Users.Update,
-                        StandardPermissions.Users.Delete,
-                        StandardPermissions.Users.ManagePermissions,
-                        StandardPermissions.Roles.Default,
-                        StandardPermissions.Roles.Create,
-                        StandardPermissions.Roles.Read,
-                        StandardPermissions.Roles.Update,
-                        StandardPermissions.Roles.Delete,
-                        StandardPermissions.Roles.ManagePermissions,
-                        StandardPermissions.Tenants.Default,
-                        StandardPermissions.Tenants.Create,
-                        StandardPermissions.Tenants.Read,
-                        StandardPermissions.Tenants.Update,
-                        StandardPermissions.Tenants.Delete,
-                        StandardPermissions.Tenants.ManageFeatures
-                    }
+                    StandardPermissions.GetAllPermissions()
+                        .Concat(OnePermissions.GetAllPermissions())
+                        .ToArray()
                 },
                 {
                     "user",
                     new[]
                     {
                         StandardPermissions.Users.Read,
-                        StandardPermissions.Roles.Read
+                        StandardPermissions.Roles.Read,
+                        OnePermissions.Products.Read
                     }
                 }
             };
 
             foreach (var role in standardRoles)
             {
-                await syncService.SyncRolePermissionsAsync(role.Key, role.Value, cancellationToken);
-                _logger.LogInformation("Synchronized permissions for role: {Role}", role.Key);
+                try
+                {
+                    await syncService.SyncRolePermissionsAsync(role.Key, role.Value, cancellationToken);
+                    _logger.LogInformation("Synchronized permissions for role: {Role}", role.Key);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to get role permissions for role {RoleId}", role.Key);
+                }
             }
         }
         catch (Exception ex)

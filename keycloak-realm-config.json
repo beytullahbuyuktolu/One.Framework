@@ -126,12 +126,6 @@
             "jsonType.label": "String"
           }
         }
-      ],
-      "serviceAccountsRoles": [
-        "view-realm",
-        "view-users",
-        "view-clients",
-        "view-authorization"
       ]
     }
   ],

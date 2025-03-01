@@ -78,6 +78,36 @@ public class KeycloakSyncService : IKeycloakSyncService
         }
     }
 
+    public async Task SyncRolePermissionsAsync(string roleName, IEnumerable<string> permissions, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var token = await GetAdminTokenAsync(cancellationToken);
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            var apiClient = await GetClientAsync(client, cancellationToken);
+            if (apiClient == null) return;
+
+            // Get or create role
+            var role = await GetOrCreateRoleAsync(client, roleName, cancellationToken);
+            if (role == null) return;
+
+            // Get existing role permissions
+            var existingPermissions = await GetRolePermissionsAsync(client, role.Id, cancellationToken);
+            var permissionsToAdd = permissions.Except(existingPermissions);
+
+            foreach (var permission in permissionsToAdd)
+            {
+                await AssignPermissionToRoleAsync(client, apiClient.Id, role.Id, permission, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error syncing role permissions for role {RoleName}", roleName);
+        }
+    }
+
     private async Task<KeycloakClient> GetClientAsync(HttpClient client, CancellationToken cancellationToken)
     {
         var clientsUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/clients";
@@ -266,6 +296,94 @@ public class KeycloakSyncService : IKeycloakSyncService
         }
     }
 
+    private async Task<KeycloakRole> GetOrCreateRoleAsync(HttpClient client, string roleName, CancellationToken cancellationToken)
+    {
+        var rolesUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles";
+        
+        // Check if role exists
+        var existingRole = await client.GetAsync($"{rolesUrl}/{roleName}", cancellationToken);
+        if (existingRole.IsSuccessStatusCode)
+        {
+            return await existingRole.Content.ReadFromJsonAsync<KeycloakRole>(cancellationToken);
+        }
+
+        // Create new role
+        var roleData = new
+        {
+            name = roleName,
+            description = $"Auto-generated role: {roleName}",
+            composite = false,
+            clientRole = false
+        };
+
+        var response = await client.PostAsJsonAsync(rolesUrl, roleData, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Failed to create role {RoleName}", roleName);
+            return null;
+        }
+
+        return await response.Content.ReadFromJsonAsync<KeycloakRole>(cancellationToken);
+    }
+
+    private async Task<IEnumerable<string>> GetRolePermissionsAsync(HttpClient client, string roleId, CancellationToken cancellationToken)
+    {
+        var permissionsUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/roles/{roleId}/permissions";
+        var response = await client.GetAsync(permissionsUrl, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Failed to get role permissions for role {RoleId}", roleId);
+            return Enumerable.Empty<string>();
+        }
+
+        var permissions = await response.Content.ReadFromJsonAsync<List<KeycloakPermission>>(cancellationToken);
+        return permissions?.Select(p => p.Name) ?? Enumerable.Empty<string>();
+    }
+
+    private async Task AssignPermissionToRoleAsync(HttpClient client, string clientId, string roleId, string permission, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Create resource and policy if not exists
+            var resource = await CreateResourceAsync(client, clientId, permission, cancellationToken);
+            if (resource == null) return;
+
+            var policy = await CreateRolePolicyAsync(client, clientId, roleId, permission, cancellationToken);
+            if (policy == null) return;
+
+            // Create permission
+            await CreatePermissionAsync(client, clientId, permission, resource.Id, policy.Id, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning permission {Permission} to role {RoleId}", permission, roleId);
+        }
+    }
+
+    private async Task<KeycloakPolicy> CreateRolePolicyAsync(HttpClient client, string clientId, string roleId, string permission, CancellationToken cancellationToken)
+    {
+        var policyUrl = $"{_keycloakBaseUrl}/admin/realms/{_realm}/clients/{clientId}/authz/resource-server/policy/role";
+        var policyData = new
+        {
+            name = $"{permission}_role_policy",
+            description = $"Role policy for {permission}",
+            type = "role",
+            logic = "POSITIVE",
+            decisionStrategy = "UNANIMOUS",
+            roles = new[] { new { id = roleId } }
+        };
+
+        var response = await client.PostAsJsonAsync(policyUrl, policyData, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Failed to create role policy for permission {Permission}", permission);
+            return null;
+        }
+
+        return await response.Content.ReadFromJsonAsync<KeycloakPolicy>(cancellationToken);
+    }
+
     private class KeycloakClient
     {
         [JsonPropertyName("id")]
@@ -297,5 +415,19 @@ public class KeycloakSyncService : IKeycloakSyncService
     {
         [JsonPropertyName("access_token")]
         public string AccessToken { get; set; }
+    }
+
+    private class KeycloakRole
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+    }
+
+    private class KeycloakPermission
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
     }
 }

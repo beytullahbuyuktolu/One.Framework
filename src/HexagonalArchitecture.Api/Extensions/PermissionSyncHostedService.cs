@@ -1,4 +1,5 @@
 ﻿using HexagonalArchitecture.Domain.Configurations.KeyCloak.Interfaces;
+using HexagonalArchitecture.Domain.Permissions;
 using System.Text.Json.Serialization;
 
 namespace HexagonalArchitecture.Api.Extensions;
@@ -42,7 +43,12 @@ public class PermissionSyncHostedService : BackgroundService
                 }
 
                 _logger.LogInformation("Successfully obtained service account token");
+                
+                // Sync permissions
                 await syncService.SyncPermissionsAsync(stoppingToken);
+                
+                // Sync role-based permissions
+                await SyncRoleBasedPermissionsAsync(syncService, stoppingToken);
                 
                 var interval = _configuration.GetValue("PermissionSync:IntervalHours", 1);
                 await Task.Delay(TimeSpan.FromHours(interval), stoppingToken);
@@ -102,6 +108,59 @@ public class PermissionSyncHostedService : BackgroundService
         {
             _logger.LogError(ex, "Error obtaining service account token");
             return null;
+        }
+    }
+
+    private async Task SyncRoleBasedPermissionsAsync(IKeycloakSyncService syncService, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Standart rolleri ve izinleri senkronize et
+            var standardRoles = new Dictionary<string, IEnumerable<string>>
+            {
+                {
+                    "admin",
+                    new[]
+                    {
+                        StandardPermissions.Users.Default,
+                        StandardPermissions.Users.Create,
+                        StandardPermissions.Users.Read,
+                        StandardPermissions.Users.Update,
+                        StandardPermissions.Users.Delete,
+                        StandardPermissions.Users.ManagePermissions,
+                        StandardPermissions.Roles.Default,
+                        StandardPermissions.Roles.Create,
+                        StandardPermissions.Roles.Read,
+                        StandardPermissions.Roles.Update,
+                        StandardPermissions.Roles.Delete,
+                        StandardPermissions.Roles.ManagePermissions,
+                        StandardPermissions.Tenants.Default,
+                        StandardPermissions.Tenants.Create,
+                        StandardPermissions.Tenants.Read,
+                        StandardPermissions.Tenants.Update,
+                        StandardPermissions.Tenants.Delete,
+                        StandardPermissions.Tenants.ManageFeatures
+                    }
+                },
+                {
+                    "user",
+                    new[]
+                    {
+                        StandardPermissions.Users.Read,
+                        StandardPermissions.Roles.Read
+                    }
+                }
+            };
+
+            foreach (var role in standardRoles)
+            {
+                await syncService.SyncRolePermissionsAsync(role.Key, role.Value, cancellationToken);
+                _logger.LogInformation("Synchronized permissions for role: {Role}", role.Key);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during role-based permission sync");
         }
     }
 
